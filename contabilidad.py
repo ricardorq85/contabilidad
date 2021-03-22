@@ -34,8 +34,6 @@ archivo_ventas_proceso["CMDIdentificadorDosMovimiento"] = archivo_ventas_proceso
 archivo_ventas_proceso["CMDPrefijoRefmovimiento"] = 0
 archivo_ventas_proceso["CMDDocumentoRefMovimiento"] = archivo_ventas_proceso["Comprobante"]
 archivo_ventas_proceso["CMDComentariosMovimiento"] = "Venta accesorios varios"
-archivo_ventas_proceso["CMDValorMovimiento"] = archivo_ventas_proceso["Base gravada"]
-archivo_ventas_proceso["CMDValorBaseMovimiento"] = archivo_ventas_proceso["Base gravada"]
 archivo_ventas_proceso["CMDValorMonedaMovimiento"] = 0
 archivo_ventas_proceso["CMDOrigenMovimiento"] = "DIG"
 archivo_ventas_proceso["CMDConsecutivoCruceExtractoMovimiento"] = 0
@@ -53,8 +51,6 @@ archivo_ventas_proceso.loc[(archivo_ventas_proceso["tipo"]==3), "tipo"] = "IVA_5
 archivo_ventas_proceso.loc[(archivo_ventas_proceso["tipo"]==4), "tipo"] = "IVA_19"
 archivo_ventas_proceso.loc[(archivo_ventas_proceso["tipo"]==5), "tipo"] = "BASE_EXENTA"
 
-archivo_ventas_proceso["procesado"] = None
-
 # SUCURSAL
 archivo_ventas_proceso.loc[(archivo_ventas_proceso["CMDPrefijoMovimiento"]=="FV-2"),
                            "sucursal"] = "PRINCIPAL"
@@ -67,7 +63,46 @@ archivo_ventas_proceso.loc[(archivo_ventas_proceso["tipo"]!="TOTAL"),
 archivo_ventas_proceso.loc[(archivo_ventas_proceso["tipo"]=="TOTAL"),
                            "CMDNaturalezaMovimiento"] = "DNO"
 
+#%% Valores
+porcentaje_iva = 0.05
+archivo_ventas_proceso["VALOR_IVA_5"] = archivo_ventas_proceso["Total"] * porcentaje_iva
+porcentaje_iva = 0.19
+archivo_ventas_proceso["VALOR_IVA_19"] = archivo_ventas_proceso["Total"] * porcentaje_iva
+
+archivo_ventas_proceso.loc[(archivo_ventas_proceso["VALOR_IVA_5"] == archivo_ventas_proceso["Total"]),
+                       "VALOR_IVA_19"] = 0
+archivo_ventas_proceso.loc[(archivo_ventas_proceso["VALOR_IVA_19"] == archivo_ventas_proceso["Total"]),
+                       "VALOR_IVA_5"] = 0
+archivo_ventas_proceso.loc[(archivo_ventas_proceso["VALOR_IVA_5"] != archivo_ventas_proceso["Total"]) &
+                           (archivo_ventas_proceso["VALOR_IVA_19"] != archivo_ventas_proceso["Total"]),
+                       "VALOR_IVA_5"] = 0
+archivo_ventas_proceso.loc[(archivo_ventas_proceso["VALOR_IVA_5"] != archivo_ventas_proceso["Total"]) &
+                           (archivo_ventas_proceso["VALOR_IVA_19"] != archivo_ventas_proceso["Total"]),
+                       "VALOR_IVA_19"] = 0
+
+archivo_ventas_proceso.loc[(archivo_ventas_proceso["tipo"] == "TOTAL"),
+                       "CMDValorMovimiento"] = archivo_ventas_proceso["Total"]
+archivo_ventas_proceso.loc[(archivo_ventas_proceso["tipo"] == "BASE_EXENTA"),
+                       "CMDValorMovimiento"] = archivo_ventas_proceso["Base exenta"]
+
+archivo_ventas_proceso.loc[(archivo_ventas_proceso["tipo"] == "BASE_GRAVADA_19"),
+                       "CMDValorMovimiento"] = archivo_ventas_proceso["Base gravada"]
+archivo_ventas_proceso.loc[(archivo_ventas_proceso["tipo"] == "BASE_GRAVADA_5"),
+                       "CMDValorMovimiento"] = archivo_ventas_proceso["Base gravada"]
+
+archivo_ventas_proceso.loc[(archivo_ventas_proceso["tipo"] == "IVA_19"),
+                       "CMDValorMovimiento"] = archivo_ventas_proceso["VALOR_IVA_19"]
+archivo_ventas_proceso.loc[(archivo_ventas_proceso["tipo"] == "IVA_5"),
+                       "CMDValorMovimiento"] = archivo_ventas_proceso["VALOR_IVA_5"]
+
+archivo_ventas_proceso["CMDValorBaseMovimiento"] = 0
 #%% CUENTAS
+archivo_ventas_proceso["TOTAL"] = 0
+archivo_ventas_proceso["BASE_GRAVADA_19"] = 0
+archivo_ventas_proceso["BASE_GRAVADA_5"] = 0
+archivo_ventas_proceso["IVA_19"] = 0
+archivo_ventas_proceso["IVA_5"] = 0
+archivo_ventas_proceso["BASE_EXENTA"] = 0
 
 archivo_ventas_proceso.loc[
     (archivo_ventas_proceso["tipo"] == "TOTAL") &
@@ -123,9 +158,35 @@ archivo_ventas_proceso.loc[
     (archivo_ventas_proceso["sucursal"] == "OVIEDO"), 
                        "CMDCodigoCuentaMovimiento"] = "41359512"
 
+#%% Procesado SI NO
+archivo_ventas_proceso["procesado"] = 0
+
+archivo_ventas_proceso.loc[(archivo_ventas_proceso["tipo"] == "TOTAL"),
+                           "procesado"] = 1
+
+archivo_ventas_proceso.loc[(archivo_ventas_proceso["tipo"] == "BASE_GRAVADA_19") &
+                           (archivo_ventas_proceso["CMDValorMovimiento"] > 0),
+                       "procesado"] = 1
+archivo_ventas_proceso.loc[(archivo_ventas_proceso["tipo"] == "BASE_GRAVADA_5") &
+                           (archivo_ventas_proceso["CMDValorMovimiento"] > 0),
+                       "procesado"] = 1
+
+archivo_ventas_proceso.loc[(archivo_ventas_proceso["tipo"] == "IVA_19") &
+                           (archivo_ventas_proceso["CMDValorMovimiento"] > 0),
+                       "procesado"] = 1
+archivo_ventas_proceso.loc[(archivo_ventas_proceso["tipo"] == "IVA_5") &
+                           (archivo_ventas_proceso["CMDValorMovimiento"] > 0),
+                       "procesado"] = 1
+
+archivo_ventas_proceso.loc[(archivo_ventas_proceso["tipo"] == "BASE_EXENTA") &
+                           (archivo_ventas_proceso["CMDValorMovimiento"] > 0),
+                       "procesado"] = 1
+
+#%% Guardar archivo
 columnas_movimiento = ["CMDAnoMovimiento","CMDPeriodoMovimiento","CMDComprobanteMovimiento","CMDPrefijoMovimiento","CMDDocumentoMovimiento","CMDFechaMovimiento","CMDItemMovimiento","CMDCodigoCuentaMovimiento","CMDCodCentroCostosMovimiento","CMDCodigoMonedaMovimiento","CMDCodigoActivoMovimiento","CMDCodigoDiferidoMovimiento","CMDIdentificadorUnoMovimiento","CMDSucursalMovimiento","CMDIdentificadorDosMovimiento","CMDPrefijoRefmovimiento","CMDDocumentoRefMovimiento","CMDComentariosMovimiento","CMDValorMovimiento","CMDValorBaseMovimiento","CMDValorMonedaMovimiento","CMDNaturalezaMovimiento","CMDOrigenMovimiento","CMDConsecutivoCruceExtractoMovimiento","CMDAnoCruceExtractoMovimiento","CMDPeriodoCruceExtractoMovimiento","CMDTipoAsientoMovimiento","CMDValorOtraMonedaMovimiento"]
 columnas_archivo_movimiento = archivo_movimientos.columns
-archivo_ventas_final = archivo_ventas_proceso[columnas_movimiento]
+archivo_ventas_final = archivo_ventas_proceso[columnas_movimiento].loc[
+    (archivo_ventas_proceso["procesado"] == 1)]
 archivo_ventas_final.to_csv("files/archivo_ventas_final.csv", index=False)
 
 # Base gravable, iva: CNO --> OK
@@ -146,3 +207,5 @@ archivo_ventas_final.to_csv("files/archivo_ventas_final.csv", index=False)
 
 
 # Total de la principal: 130505 --> OK
+
+#%% Valores 
